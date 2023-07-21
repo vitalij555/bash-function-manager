@@ -24,10 +24,10 @@ def register(script_name):
     with open(full_path, 'r') as f:
         script_contents = f.read()
 
-    function_regex = r"function\s+(\w+)\s*{([\s\S]*?)}(?=\s*$)"
+    function_regex = r"function\s+(\w+)\s*\n*\(*\)*\n*\{([\s\S]*?)\}\n*(?=\s*$)"
     function_defs = re.findall(function_regex, script_contents, re.DOTALL | re.MULTILINE | re.UNICODE)
 
-    ensure_directory_exists(os.path.join(LINK_DIR, SCRIPTS_FOLDER_NAME))
+    # ensure_directory_exists(os.path.join(LINK_DIR, SCRIPTS_FOLDER_NAME))
 
     script_destination_full_path = os.path.join(LINK_DIR, SCRIPTS_FOLDER_NAME, script_name)
     ensure_directory_exists(os.path.dirname(script_destination_full_path))
@@ -55,7 +55,7 @@ source {script_destination_full_path}
             master_f.seek(0)
             master_contents = master_f.read()
 
-        function_regex = r"function\s+" + re.escape(name) + r"\s*{([\s\S]*?)}(?=\s*$)"
+        function_regex = r"function\s+" + re.escape(name) + r"\s*\n*\(*\)*\n*\{([\s\S]*?)\}\n*(?=\s*$)"
         match = re.search(function_regex, master_contents)
 
         if match:
@@ -77,7 +77,7 @@ def list_commands():
         print("There is no registered commands yet")
         return
 
-    function_regex = r"function\s+(\w+)\s*{"
+    function_regex = r"function\s+(\w+)\s*\n*\(*\)*\n*\{"
     matches = re.findall(function_regex, contents)
     if not matches:
         print("There is no registered commands yet")
@@ -93,6 +93,7 @@ def list_commands():
         print(f"{name:{max_len}}", end='  ')
 
     print()
+
 
 
 if __name__ == "__main__":
