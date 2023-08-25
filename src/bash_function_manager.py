@@ -4,24 +4,34 @@ import sys
 import re
 import os
 
+from function_registry import JsonKeyValueStore
+
+
 LINK_DIR = "/usr/local/bin"  # Change this to the desired directory
 SCRIPTS_FOLDER_NAME = "scripts"
 MASTER_SCRIPT_NAME = "my_functions_master.sh"
 MASTER_SCRIPT_PATH = os.path.join(LINK_DIR, SCRIPTS_FOLDER_NAME, MASTER_SCRIPT_NAME)
+DB_PATH = "/usr/local/bash_function_registry/registry.json"
 
 
 def ensure_directory_exists(path):
     os.makedirs(path, exist_ok=True)
 
 
+def ensure_file_exists(path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'a') as f:
+        pass
+
+
+
 def register(script_name):
     if script_name.startswith('.') or '\\' in script_name or '/' in script_name:  #we have relative path
-        full_path = os.path.abspath(os.path.join(os.getcwd(), script_name))
+        script_full_path = os.path.abspath(os.path.join(os.getcwd(), script_name))
     else:
-        full_path = script_name
+        script_full_path = os.path.abspath(script_name)
 
-
-    with open(full_path, 'r') as f:
+    with open(script_full_path, 'r') as f:
         script_contents = f.read()
 
     function_regex = r"function\s+(\w+)\s*\n*\(*\)*\n*\{([\s\S]*?)\}\n*(?=\s*$)"
@@ -47,53 +57,48 @@ def register(script_name):
 source {script_destination_full_path}
 {name} "$@"
 """)
-        os.chmod(link_path, 0o755)
+        # os.chmod(link_path, 0o755)
+        # ensure_directory_exists(os.path.dirname(MASTER_SCRIPT_PATH))
 
-        ensure_directory_exists(os.path.dirname(MASTER_SCRIPT_PATH))
+        # with open(MASTER_SCRIPT_PATH, 'a+') as master_f:
+        #     master_f.seek(0)
+        #     master_contents = master_f.read()
 
-        with open(MASTER_SCRIPT_PATH, 'a+') as master_f:
-            master_f.seek(0)
-            master_contents = master_f.read()
+        # function_regex = r"function\s+" + re.escape(name) + r"\s*\n*\(*\)*\n*\{([\s\S]*?)\}\n*(?=\s*$)"
+        # match = re.search(function_regex, master_contents)
 
-        function_regex = r"function\s+" + re.escape(name) + r"\s*\n*\(*\)*\n*\{([\s\S]*?)\}\n*(?=\s*$)"
-        match = re.search(function_regex, master_contents)
+        # # condition below is used to understand whether we "update existing" or "insert new one".
+        # if match:
+        #     start_idx = match.start()
+        #     end_idx = match.end()
+        #     updated_master_contents = master_contents[:start_idx] + f"\nfunction {name}\n" + "{" + contents + "\n}" + master_contents[end_idx:]
+        # else:
+        #     updated_master_contents = master_contents + f"\n\nfunction {name}\n" + "{" + contents + "\n}"
 
-        if match:
-            start_idx = match.start()
-            end_idx = match.end()
-            updated_master_contents = master_contents[:start_idx] + f"\nfunction {name}\n" + "{" + contents + "\n}" + master_contents[end_idx:]
-        else:
-            updated_master_contents = master_contents + f"\n\nfunction {name}\n" + "{" + contents + "\n}"
+        # with open(MASTER_SCRIPT_PATH, 'w') as master_f:
+        #     master_f.write(updated_master_contents)
 
-        with open(MASTER_SCRIPT_PATH, 'w') as master_f:
-            master_f.write(updated_master_contents)
+        
+        ensure_file_exists(DB_PATH)
+        registry = JsonKeyValueStore(DB_PATH)
+        registry.set(name, script_full_path)
+        registry.save()
+        
 
 
 def list_commands():
-    try:
-        with open(MASTER_SCRIPT_PATH, 'r') as f:
-            contents = f.read()
-    except FileNotFoundError:
-        print("There is no registered commands yet")
-        return
+    ensure_file_exists(DB_PATH)
+    store = JsonKeyValueStore(DB_PATH)  
 
-    function_regex = r"function\s+(\w+)\s*\n*\(*\)*\n*\{"
-    matches = re.findall(function_regex, contents)
-    if not matches:
-        print("There is no registered commands yet")
-        return
-    matches.sort()
+    for key in store.data.keys():
+        print(key)
 
-    max_len = max(map(len, matches))
-    num_cols = max(1, os.get_terminal_size().columns // (max_len + 2))
 
-    for i, name in enumerate(matches):
-        if i % num_cols == 0:
-            print()
-        print(f"{name:{max_len}}", end='  ')
-
-    print()
-
+def edit_command(command_name):
+    ensure_file_exists(DB_PATH)
+    store = JsonKeyValueStore(DB_PATH)  
+    if command_name in store.data:
+        source_file = store.data[command_name]
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
 
 function test_add()
 {
-    local result=$(($1 + $2))
+    local result=$(($1+$2))
     echo "$result"
 }
 
