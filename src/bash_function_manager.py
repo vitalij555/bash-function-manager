@@ -99,6 +99,7 @@ def edit_command(command_name):
     store = JsonKeyValueStore(DB_PATH)  
     if command_name in store.data:
         source_file = store.data[command_name]
+        os.system(f"xdg-open {source_file}")
 
 
 if __name__ == "__main__":
@@ -111,5 +112,7 @@ if __name__ == "__main__":
             register script_name""")
     elif sys.argv[0].endswith("list_commands"):
         list_commands()
+    elif sys.argv[0].endswith("edit_command"):
+        edit_command(sys.argv[1])
     else:
         print("Unknown command")
