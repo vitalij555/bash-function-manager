@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import pwd
 import sys
 import re
 import os
@@ -12,6 +12,13 @@ SCRIPTS_FOLDER_NAME = "scripts"
 MASTER_SCRIPT_NAME = "my_functions_master.sh"
 MASTER_SCRIPT_PATH = os.path.join(LINK_DIR, SCRIPTS_FOLDER_NAME, MASTER_SCRIPT_NAME)
 DB_PATH = "/usr/local/bash_function_registry/registry.json"
+
+
+def get_real_user():
+    sudo_user = os.environ.get('SUDO_USER')
+    if sudo_user is not None:
+        return sudo_user
+    return pwd.getpwuid(os.getuid())[0]
 
 
 def ensure_directory_exists(path):
@@ -34,7 +41,8 @@ def register(script_name):
     with open(script_full_path, 'r') as f:
         script_contents = f.read()
 
-    function_regex = r"function\s+(\w+)\s*\n*\(*\)*\n*\{([\s\S]*?)\}\n*(?=\s*$)"
+    function_regex = r"(?<!#private\n)function\s+(\w+)\s*\n*\(*\)*\s*\n*\{([\s\S]*?)\}\n*(?=\s*$)"
+
     function_defs = re.findall(function_regex, script_contents, re.DOTALL | re.MULTILINE | re.UNICODE)
 
     # ensure_directory_exists(os.path.join(LINK_DIR, SCRIPTS_FOLDER_NAME))
@@ -57,6 +65,18 @@ def register(script_name):
 source {script_destination_full_path}
 {name} "$@"
 """)
+
+        real_user = get_real_user()
+        uid = pwd.getpwnam(real_user).pw_uid
+        gid = pwd.getpwnam(real_user).pw_gid
+
+        # Change the owner of the file
+        os.chown(link_path, uid, gid)
+
+        # Change the permissions of the file to allow owner read, write, and execute
+        os.chmod(link_path, 0o700)
+
+
         # os.chmod(link_path, 0o755)
         # ensure_directory_exists(os.path.dirname(MASTER_SCRIPT_PATH))
 
